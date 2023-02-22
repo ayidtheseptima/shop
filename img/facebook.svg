@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: sketchtool 53.2 (72643) - https://sketchapp.com -->
+    <title>A2A6365A-F86C-4AFA-AC5A-8422FA865214</title>
+    <desc>Created with sketchtool.</desc>
+    <defs>
+        <polygon id="path-1" points="-3.04515289e-16 0 8 0 8 17 -3.04515289e-16 17"></polygon>
+    </defs>
+    <g id="Desktop" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Product-page-expanded" transform="translate(-729.000000, -4250.000000)">
+            <g id="footer" transform="translate(0.000000, 4004.000000)">
+                <g id="Group-11" transform="translate(126.000000, 64.000000)">
+                    <g id="Group-10">
+                        <g id="Group-9">
+                            <g id="Group-26" transform="translate(601.000000, 0.000000)">
+                                <g id="Group-30" transform="translate(0.000000, 176.000000)">
+                                    <g id="facebook" transform="translate(2.000000, 6.000000)">
+                                        <rect id="Rectangle" fill="#3A5999" fill-rule="nonzero" x="0" y="0" width="22" height="22" rx="3"></rect>
+                                        <g id="facebook-letter-logo-(2)" transform="translate(7.000000, 5.000000)">
+                                            <mask id="mask-2" fill="white">
+                                                <use xlink:href="#path-1"></use>
+                                            </mask>
+                                            <g id="Clip-2"></g>
+                                            <path d="M1.72894471,3.29256944 L1.72894471,5.63243056 L0,5.63243056 L0,8.49433333 L1.72894471,8.49433333 L1.72894471,17 L5.28063806,17 L5.28063806,8.49527778 L7.66406762,8.49527778 C7.66406762,8.49527778 7.88738766,7.123 7.9961907,5.62227778 L5.29444676,5.62227778 L5.29444676,3.66515278 C5.29444676,3.37284722 5.68132849,2.97995833 6.06463901,2.97995833 L8,2.97995833 L8,0 L5.36801381,0 C1.64156895,0 1.72894471,2.86473611 1.72894471,3.29256944 Z" id="Fill-1" fill="#FFFFFF" mask="url(#mask-2)"></path>
+                                        </g>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>
