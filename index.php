@@ -54,25 +54,12 @@ $dotenv->load();
 
   <?php
     #error_reporting(0);
-    include'functions.php';
     include'bd_connect.php';
-
-
-    if(isset($_SESSION['role']) && !empty($_SESSION['role'])){
-      do_html_header_logged($_SESSION['user_id'],$_SESSION['role']);
-    }
-    else{
-      do_html_header_unlogged();
-    }
+    $db = new PDO('mysql:host='.$host.';dbname='.$database, $login, $password);
+    /*header*/
+    include 'blocks/header.php';
 
     if(isset($_GET['action']) && !empty($_GET['action'])) {
-      //setting $role for further functions
-      if(isset($_SESSION['role']) && !empty($_SESSION['role'])){
-        $role=$_SESSION['role'];
-      }
-      else{
-        $role=0;
-      }
       //actions
       if ($_GET['action']=="log_out") {
         unset($_SESSION["user_id"]);
@@ -85,31 +72,28 @@ $dotenv->load();
         ";
       }
       elseif ($_GET['action']=="news") {
-        do_html_body_news($role);
+        include 'blocks/news.php';
       }
       elseif ($_GET['action']=="products_by_group") {
-        do_html_body_product_by_group($_GET['group_id'],$role);
+        include 'blocks/product_by_group.php';
       }
       elseif ($_GET['action']=="products_by_grand_group"){
-        do_html_body_product_by_grand_group($_GET['grand_group_id'],$role);
-      }
-      elseif ($_GET['action']=="search"){
-        do_html_body_search($role);
+        include 'blocks/product_by_grand_group.php';
       }
       elseif ($_GET['action']=="view_product") {
-        do_html_body_product_info($_GET['product_id'],$role);
+        include 'blocks/product_info.php';
       }
       elseif ($_GET['action']=="search") {
-        do_html_body_search($role);
+        include 'blocks/search.php';
       }
       elseif ($_GET['action']=="brand_list"){
-        do_html_body_ventor_list($role);
+        include 'blocks/ventor_list.php';
       }
       elseif ($_GET['action']=="products_by_ventor") {
-        do_html_body_product_by_ventor($_GET['ventor_id'],$role);
+        include 'blocks/product_by_ventor.php';
       }
       elseif ($_GET['action']=="orders_list") {
-        do_html_body_orders_list($role,$_SESSION['user_id']);
+        include 'blocks/orders_list.php';
       }
       else{
         echo "
@@ -131,8 +115,9 @@ $dotenv->load();
     }
 
 
-    do_html_footer();
-
+    include 'blocks/footer.php';
+    $result = null;
+    $db = null;
 
     ?>
 

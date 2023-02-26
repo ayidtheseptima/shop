@@ -1,5 +1,8 @@
 <?php
 session_start();
+require(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 ?>
 
 
@@ -53,30 +56,15 @@ session_start();
   
     <?php
     include'bd_connect.php';
-    include'functions.php';
-
-    if(isset($_SESSION['role']) && !empty($_SESSION['role'])){
-      do_html_header_logged($_SESSION['user_id'],$_SESSION['role']);
-    }
-    else{
-      header('Location: index.php?action=news');
-      die();
-    }
-
-
-    $mysqli = new mysqli($host, $login, $password, $database);
-    // check connection
-    if ($mysqli->connect_errno) {
-      die("Connect failed: ".$mysqli->connect_error);
-    }
-
+    $db = new PDO('mysql:host='.$host.';dbname='.$database, $login, $password);
+    include 'blocks/header.php';
 
 
     if(isset($_GET['action']) && !empty($_GET['action'])){
       if($_GET['action']=="update_info"){
         $query ="SELECT * FROM `users` WHERE `user_id` = '".$_SESSION['user_id']."'";
-        $result = $mysqli->query($query);
-        $result = $result->fetch_assoc();
+        $result = $db->query($query);
+        $result = $result->fetch();
 
         $return="
       <div class=\"content\">
@@ -136,18 +124,6 @@ session_start();
                 <a href=\"user_settings.php?action=set_theme&theme=white\">-Light</a>
               </div>
             </div>
-            <div class=\"settings-header\">Choose language</div>
-            <div class=\"settings-list\">
-              <div class=\"theme-option\">
-                <a href=\"user_settings.php?action=update_info\">-English</a>
-              </div>
-              <div class=\"theme-option\">
-                <a href=\"ru/user_settings.php?action=update_info\">-Russian</a>
-              </div>
-              <div class=\"theme-option\">
-                <a href=\"ua/user_settings.php?action=update_info\">-Ukrainian</a>
-              </div>
-            </div>
           </div>
         ";
 
@@ -155,9 +131,11 @@ session_start();
         echo $return;
       }
       elseif ($_GET['action']=="updating_info") {
-        $query="SELECT * FROM `users` WHERE `nickname` = '".$_POST['nickname']."'";
-        $nickname_result = $mysqli->query($query);
-        $nickname_result = $nickname_result->fetch_assoc();
+        $query="SELECT * FROM `users` WHERE `nickname` = :nickname";
+        $nickname_result = $db->prepare($query);
+        $nickname_result->bindParam(':nickname',$_POST['nickname']);
+        $nickname_result->execute();
+        $nickname_result = $nickname_result->fetch();
         if (!empty($nickname_result['user_id'])) {
           if ($nickname_result['user_id']!=$_SESSION['user_id']) {
             echo "
@@ -170,9 +148,12 @@ session_start();
           }
         }
 
-        $query="SELECT * FROM `users` WHERE `email` = '".$_POST['email']."'";
-        $email_result = $mysqli->query($query);
-        $email_result = $email_result->fetch_assoc();
+        $query="SELECT * FROM `users` WHERE `email` = :email";
+        $email_result = $db->prepare($query);
+        $email_result->bindParam(':email',$_POST['email']);
+        $email_result->execute();
+        $email_result = $email_result->fetch();
+        
         if (!empty($email_result['user_id'])) {
           if ($email_result['user_id']!=$_SESSION['user_id']) {
             echo "
@@ -186,8 +167,8 @@ session_start();
         }
 
         $query="SELECT * FROM `users` WHERE `user_id` = '".$_SESSION['user_id']."'";
-        $result = $mysqli->query($query);
-        $result = $result->fetch_assoc();
+        $result = $db->query($query);
+        $result = $result->fetch();
         //image
         //deleting old image
         if (!($result['user_image']=="21252.png")) {
@@ -215,8 +196,16 @@ session_start();
           }
         }
         //updating info
-        $query = "UPDATE `users` SET `nickname`='".$_POST['nickname']."', `phone`='".$_POST['phone']."', `password`='".md5($_POST['password'])."',`email`='".$_POST['email']."',`user_image`='".$coverpic."' WHERE `user_id`= '".$_SESSION['user_id']."'";
-        $result = $mysqli->query($query);
+        $password = md5($_POST['password']);
+        $query = "UPDATE `users` SET `nickname`= :nickname, `phone`= :phone, `password`= :password,`email`= :email,`user_image`= :user_image WHERE `user_id`= '".$_SESSION['user_id']."'";
+        $result = $db->prepare($query);
+        $result->bindParam(':nickname',$_POST['nickname']);
+        $result->bindParam(':phone',$_POST['phone']);
+        $result->bindParam(':email',$_POST['email']);
+        $result->bindParam(':password',$password);
+        $result->bindParam(':user_image',$coverpic);
+
+        $result->execute();
 
         //alert+redirect
         echo "

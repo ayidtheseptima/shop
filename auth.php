@@ -1,5 +1,8 @@
 <?php
 session_start();
+require(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 ?>
 <!doctype html>
 <html class="no-js" lang="">
@@ -34,21 +37,27 @@ session_start();
 <body>
 <?php
 
-include'functions.php';
-do_html_header_unlogged();
+
+include 'blocks/header.php';
 if(isset($_POST['email']) && !empty($_POST['email']) && isset($_POST['password']) && !empty($_POST['password'])){
 /*connecting to bd*/
-	include 'bd_connect.php';
-	$link = mysqli_connect($host, $login, $password, $database) 
-	     or die("Error " . mysqli_error($link));
-	$query ="SELECT * FROM users WHERE email = '".$_POST['email']."'";
-	$result = mysqli_query($link, $query) or die("Error " . mysqli_error($link));
-	$result = mysqli_fetch_array($result);
+  include'bd_connect.php';
+  $db = new PDO('mysql:host='.$host.';dbname='.$database, $login, $password);
+  $query ="SELECT * FROM users WHERE email = :email";
+  $result = $db->prepare($query);
+  $result->bindParam(':email',$_POST['email']);
+  $result->execute();
+  $result = $result->fetch();
+	
   if (!empty($result['password'])) {
     if(md5($_POST['password'])==$result['password']){
       $_SESSION['user_id']=$result['user_id'];
       $_SESSION['role']=$result['role'];
-      header('Location: index.php?action=news');
+      echo "
+        <script>
+           window.location='index.php?action=news';
+        </script>";
+      
     }
     else{
       echo "
@@ -68,7 +77,8 @@ if(isset($_POST['email']) && !empty($_POST['email']) && isset($_POST['password']
 
     ";
   }
-	
+  $result = null;
+	$db = null;
 }
 else{
 	echo "

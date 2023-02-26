@@ -1,5 +1,8 @@
 <?php
 session_start();
+require(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 ?>
 
 <!doctype html>
@@ -49,14 +52,10 @@ session_start();
 
 <body>
 <?php
-include'functions.php';
 include 'bd_connect.php';
-if(isset($_SESSION['role']) && !empty($_SESSION['role'])){
-   do_html_header_logged($_SESSION['user_id'],$_SESSION['role']);
-}
-else{
-   do_html_header_unlogged();
-}
+$db = new PDO('mysql:host='.$host.';dbname='.$database, $login, $password);
+include 'blocks/header.php';
+
 if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action']) && !empty($_GET['action'])){
   echo"
     <div class=\"content\">
@@ -84,18 +83,19 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
     ";
   }
   elseif($_GET['action']=="adding_brand"){
-    $mysqli = new mysqli($host, $login, $password, $database);
-    // check connection
-    if ($mysqli->connect_errno) {
-      die("Connect failed: ".$mysqli->connect_error);
-    }
-    $name = addslashes($_POST['name']);
-    $query = "INSERT INTO `ventors`( `ventor_id`, `ventor_name`, `ventor_logo`, `ventor_description`) VALUES ('','".$name."','21252.png','".addslashes($_POST['brand_description_text'])."')";
-    $result = $mysqli->query($query);
     
-    $query ="SELECT * FROM `ventors` WHERE `ventor_name` = '".$name."'";
-    $result = $mysqli->query($query);
-    $result = $result->fetch_assoc();
+
+    $query = "INSERT INTO `ventors`( `ventor_id`, `ventor_name`, `ventor_logo`, `ventor_description`) VALUES ('',:name,'21252.png',:description)";
+    $result = $db->prepare($query);
+    $result->bindParam(':name',$_POST['name']);
+    $result->bindParam(':description',$_POST['brand_description_text']);
+    $result->execute();
+    
+    $query ="SELECT * FROM `ventors` WHERE `ventor_name` = :name";
+    $result = $db->prepare($query);
+    $result->bindParam(':name',$_POST['name']);
+    $result->execute();
+    $result = $result->fetch();
 
     //image upload
     $imgFile = $_FILES['brand_image']['name'];
@@ -119,7 +119,7 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
       }
     }
     $query = "UPDATE `ventors` SET `ventor_logo`= '".$coverpic."' WHERE `ventor_id` = ".$ventor_id;
-    $result = $mysqli->query($query);
+    $result = $db->query($query);
     echo"</div>";
     echo "
       <script type=\"text/javascript\">
@@ -146,7 +146,7 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
 
 
 echo"</div></div>";
-do_html_footer();
+include 'blocks/footer.php';
 ?>
 <script src="js/vendor/modernizr-3.11.2.min.js"></script>
   <script src="js/plugins.js"></script>

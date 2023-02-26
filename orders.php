@@ -1,5 +1,8 @@
 <?php
 session_start();
+require(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 ?>
 
 <!doctype html>
@@ -48,24 +51,16 @@ session_start();
 
 <body>
 <?php
-  include'functions.php';
   include 'bd_connect.php';
-  if(isset($_SESSION['role']) && !empty($_SESSION['role'])){
-     do_html_header_logged($_SESSION['user_id'],$_SESSION['role']);
-  }
-  else{
-     do_html_header_unlogged();
-  }
+  $db = new PDO('mysql:host='.$host.';dbname='.$database, $login, $password);
+  include 'blocks/header.php';
 
   if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action']) && !empty($_GET['action'])){
     if ($_GET['action']=="confirm") {
-      $mysqli = new mysqli($host, $login, $password, $database);
-      // check connection
-      if ($mysqli->connect_errno) {
-        die("Connect failed: ".$mysqli->connect_error);
-      }
-      $query = "UPDATE `orders` SET `status`='3' WHERE `order_id`= '".$_GET['order_id']."'";
-      $result = $mysqli->query($query);
+      $query = "UPDATE `orders` SET `status`='3' WHERE `order_id`= :order_id";
+      $result = $db->prepare($query);
+      $result->bindParam(':order_id',$_GET['order_id']);
+      $result->execute();
       echo "
           <script type=\"text/javascript\">
             alert('Confirmed sucessfully');
@@ -74,26 +69,26 @@ session_start();
       ";
     }
     elseif ($_GET['action']=="cancel"){
-      $mysqli = new mysqli($host, $login, $password, $database);
-      // check connection
-      if ($mysqli->connect_errno) {
-        die("Connect failed: ".$mysqli->connect_error);
-      }
-      $query = "UPDATE `orders` SET `status`='101' WHERE `order_id`= '".$_GET['order_id']."'";
-      $result = $mysqli->query($query);
+      $query = "UPDATE `orders` SET `status`='101' WHERE `order_id`= :order_id";
+      $result = $db->prepare($query);
+      $result->bindParam(':order_id',$_GET['order_id']);
+      $result->execute();
 
-      $query = "SELECT * FROM `orders` WHERE `order_id` = '".$_GET['order_id']."'";
-      $result = $mysqli->query($query);
-      $result= $result->fetch_assoc();
+      $query = "SELECT * FROM `orders` WHERE `order_id` = :order_id";
+      $result = $db->prepare($query);
+      $result->bindParam(':order_id',$_GET['order_id']);
+      $result->execute();
+      $result = $result->fetch();
+      
       $quantity_recovered = $result['quantity'];
-      $product_id=$result['product_id'];
+      $product_id = $result['product_id'];
 
       $query = "SELECT `quantity_available` FROM `products` WHERE `product_id` = '".$product_id."'";
-      $result = $mysqli->query($query);
-      $result= $result->fetch_assoc();
+      $result = $db->query($query);
+      $result = $result->fetch();
 
       $query = "UPDATE `products` SET `quantity_available`='".$result['quantity_available']+$quantity_recovered."' WHERE `product_id` = '".$product_id."'";
-      $result = $mysqli->query($query);
+      $result = $db->query($query);
       echo "
           <script type=\"text/javascript\">
             alert('Canceled sucessfully');
@@ -126,13 +121,8 @@ session_start();
       $return.="
           <div class=\"orders-list\">";
 
-      $mysqli = new mysqli($host, $login, $password, $database);
-      // check connection
-      if ($mysqli->connect_errno) {
-        die("Connect failed: ".$mysqli->connect_error);
-      }
       $query = "SELECT * FROM `orders` WHERE `status`= '1'";
-      $result = $mysqli->query($query);
+      $result = $db->query($query);
 
       foreach ($result as $key => $result) {
         if ($result['status']=="1") {
@@ -157,8 +147,8 @@ session_start();
           $tracking_number = "Not available yet";
         }
         $products_query ="SELECT `name` FROM `products` WHERE `product_id` ='".$result['product_id']."'";
-        $products_result = $mysqli->query($products_query);
-        $products_result = $products_result->fetch_assoc();
+        $products_result = $db->query($products_query);
+        $products_result = $products_result->fetch();
         $return.= "
           <div class=\"order\">
             <table>
@@ -223,25 +213,29 @@ session_start();
         <div class=\"content\">
           <div class=\"container\">
       ";
-      $mysqli = new mysqli($host, $login, $password, $database);
-      // check connection
-      if ($mysqli->connect_errno) {
-        die("Connect failed: ".$mysqli->connect_error);
-      }
-      $query = "UPDATE `orders` SET `status`='2',`sent_time` =".time().", `tracking_number`='".addslashes($_POST['tracking_number'])."' WHERE `order_id`= '".$_GET['order_id']."'";
-      $result = $mysqli->query($query);
+      
+      $query = "UPDATE `orders` SET `status`='2',`sent_time` =".time().", `tracking_number`= :tracking_number WHERE `order_id`= :order_id";
+      $result = $db->prepare($query);
+      $result->bindParam(':tracking_number',$_POST['tracking_number']);
+      $result->bindParam(':order_id',$_GET['order_id']);
+      $result->execute();
+      
+      
+      
       /*udpate quantity*/
-      $query = "SELECT * FROM `orders` WHERE `order_id` = '".$_GET['order_id']."'";
-      $result = $mysqli->query($query);
-      $result = $result->fetch_assoc();
+      $query = "SELECT * FROM `orders` WHERE `order_id` = :order_id";
+      $result = $db->prepare($query);
+      $result->bindParam(':order_id',$_GET['order_id']);
+      $result->execute();
+      $result = $result->fetch();
       $quantity_difference=$result['quantity'];
       $product_id = $result['product_id'];
       $query="SELECT * FROM `products` WHERE `product_id` = '".$product_id."'";
-      $result = $mysqli->query($query);
-      $result = $result->fetch_assoc();
+      $result = $db->prepare($query);
+      $result = $result->fetch();
       $new_quantity=$result['quantity_real']-$quantity_difference;
       $query = "UPDATE `products` SET `quantity_real`='".$new_quantity."' WHERE `product_id`= '".$product_id."'";
-      $result = $mysqli->query($query);
+      $result = $db->query($query);
       $return.="</div></div>";
       echo $return;
       echo "
@@ -275,13 +269,10 @@ session_start();
           <div class=\"orders-list\">
       ";
 
-      $mysqli = new mysqli($host, $login, $password, $database);
-      // check connection
-      if ($mysqli->connect_errno) {
-        die("Connect failed: ".$mysqli->connect_error);
-      }
-      $query = "SELECT * FROM `orders` WHERE `order_id`= '".$_POST['order_id']."'";
-      $result = $mysqli->query($query);
+      $query = "SELECT * FROM `orders` WHERE `order_id`= :order_id";
+      $result = $db->prepare($query);
+      $result->bindParam(':order_id',$_POST['order_id']);
+      $result->execute();
 
       foreach ($result as $key => $result) {
         if ($result['status']=="1") {
@@ -306,8 +297,8 @@ session_start();
           $tracking_number = "Not available yet";
         }
         $products_query ="SELECT `name` FROM `products` WHERE `product_id` ='".$result['product_id']."'";
-        $products_result = $mysqli->query($products_query);
-        $products_result = $products_result->fetch_assoc();
+        $products_result = $db->query($products_query);
+        $products_result = $products_result->fetch();
         $return.= "
           <div class=\"order\">
             <table>
@@ -382,7 +373,7 @@ session_start();
 
 
 
-  do_html_footer();
+  include 'blocks/footer.php';
 ?>
 <script src="js/vendor/modernizr-3.11.2.min.js"></script>
   <script src="js/plugins.js"></script>

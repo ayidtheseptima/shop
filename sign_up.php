@@ -45,15 +45,12 @@
 <body>
 	<?php
 		session_start();
-		include 'functions.php';
+		require(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
+		$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+		$dotenv->load();
 		include 'bd_connect.php';
-		if(isset($_SESSION['role']) && !empty($_SESSION['role'])){
-		  header("Location: index.php?action=news");
-			die();
-		}
-		else{
-		  do_html_header_unlogged();
-		}
+		$db = new PDO('mysql:host='.$host.';dbname='.$database, $login, $password);
+		include 'blocks/header.php';
 
 		if (isset($_POST['nickname']) && !empty($_POST['nickname'])
 			&& isset($_POST['email']) && !empty($_POST['email'])
@@ -69,15 +66,12 @@
 			      ";
 			      die();
 			}
-			$mysqli = new mysqli($host, $login, $password, $database);
-		    // check connection
-		    if ($mysqli->connect_errno) {
-		        die("Connect failed: ".$mysqli->connect_error);
-		    }
-
-		    $query="SELECT * FROM `users` WHERE `nickname` = '".$_POST['nickname']."'";
-		    $nickname_result = $mysqli->query($query);
-		    $nickname_result = $nickname_result->fetch_assoc();
+			
+		    $query="SELECT * FROM `users` WHERE `nickname` = :nickname";
+			$nickname_result = $db->prepare($query);
+			$nickname_result->bindParam(':nickname',$_POST['nickname']);
+			$nickname_result->execute();
+		    $nickname_result = $nickname_result->fetch();
 		    if (!empty($nickname_result['user_id'])) {
 		    	echo "
 			        <script type=\"text/javascript\">
@@ -88,10 +82,12 @@
 			      die();
 		    }
 		    
-		    $query="SELECT * FROM `users` WHERE `email` = '".$_POST['email']."'";
-		    $login_result = $mysqli->query($query);
-		    $login_result = $login_result->fetch_assoc();
-		    if (!empty($login_result['user_id'])) {
+		    $query="SELECT * FROM `users` WHERE `email` = :email";
+		    $email_result = $db->prepare($query);
+			$email_result->bindParam(':email',$_POST['email']);
+			$email_result->execute();
+		    $email_result = $email_result->fetch();
+		    if (!empty($email_result['user_id'])) {
 		    	echo "
 			        <script type=\"text/javascript\">
 			          alert('This email is already in use!');
@@ -101,9 +97,14 @@
 			      die();
 		    }
 		    
+			$password = md5($_POST['password']);
 		    $query = "INSERT INTO `users` (`user_id`, `email`, `password`, `nickname`, `role`, `phone`,  `user_image`) 
-		    VALUES (NULL, '".$_POST['email']."', '".md5($_POST['password'])."', '".$_POST['nickname']."', '1', '', '21252.png');";
-		    $nickname_result = $mysqli->query($query);
+		    VALUES (NULL, :email, :password, :nickname, '1', '', '21252.png');";
+		    $result = $db->prepare($query);
+			$result->bindParam(':email',$_POST['email']);
+			$result->bindParam(':password', $password);
+			$result->bindParam(':nickname',$_POST['nickname']);
+			$result->execute();
 		    echo "
 			    <script type=\"text/javascript\">
 			        alert('Registration complete!');

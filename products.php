@@ -1,5 +1,8 @@
 <?php
 session_start();
+require(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 ?>
 
 <!doctype html>
@@ -49,14 +52,9 @@ session_start();
 
 <body>
 <?php
-include'functions.php';
 include 'bd_connect.php';
-if(isset($_SESSION['role']) && !empty($_SESSION['role'])){
-   do_html_header_logged($_SESSION['user_id'],$_SESSION['role']);
-}
-else{
-   do_html_header_unlogged();
-}
+$db = new PDO('mysql:host='.$host.';dbname='.$database, $login, $password);
+include 'blocks/header.php';
 
 if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action']) && !empty($_GET['action']) && $_SESSION['role']>1){
 	if ($_GET['action']=="add_quantity") {
@@ -74,20 +72,24 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
 		";
 	}
 	elseif ($_GET['action']=="adding_quantity") {
-		$mysqli = new mysqli($host, $login, $password, $database);
-		// check connection
-		if ($mysqli->connect_errno) {
-			die("Connect failed: ".$mysqli->connect_error);
-		}
-		$query="SELECT * FROM `products` WHERE `product_id` = '".$_GET['product_id']."'";
-		$result = $mysqli->query($query);
-    $result = $result->fetch_assoc();
-    $new_quantity_available=$result['quantity_available']+$_POST['quantity'];
-    $new_quantity_real=$result['quantity_real']+$_POST['quantity'];
-    $query = "UPDATE `products` SET `quantity_available`='".$new_quantity_available."', `quantity_real`='".$new_quantity_real."', `last_delivery`='".time()."' WHERE `product_id`= '".$_GET['product_id']."'";
-    $result = $mysqli->query($query);
+		$query="SELECT * FROM `products` WHERE `product_id` = :product_id";
+		$result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
+    $result = $result->fetch();
+    $new_quantity_available=$result['quantity_available']+intval($_POST['quantity']);
+    $new_quantity_real=$result['quantity_real']+intval($_POST['quantity']);
+    $query = "UPDATE `products` SET `quantity_available`='".$new_quantity_available."', `quantity_real`='".$new_quantity_real."', `last_delivery`='".time()."' WHERE `product_id`= :product_id";
+    $result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
 		$location="index.php?action=view_product&product_id=".$_GET['product_id'];
-		header('Location: '.$location);
+		echo "
+      <script type=\"text/javascript\">
+        alert('Confirmed sucessfully');
+        window.location='".$location."';
+      </script>
+    ";
 	}
 	elseif ($_GET['action']=="add_new_product"){
 		$return="
@@ -100,13 +102,8 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
 							</div>
 							<div class=\"add-product__title\">
 								Product group:<select name=\"product_group\" id=\"product_group\">";
-		$mysqli = new mysqli($host, $login, $password, $database);
-		// check connection
-		if ($mysqli->connect_errno) {
-			die("Connect failed: ".$mysqli->connect_error);
-		}
 		$query="SELECT * FROM `products_group`";
-		$result = $mysqli->query($query);
+		$result = $db->query($query);
 		foreach ($result as $key => $result) {
 			$return.="
 				<option value=\"".$result['group_id']."\">".$result['product_group_name']."</option>
@@ -124,7 +121,7 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
 							<div class=\"add-product__title\">
 								Ventor:<select name=\"ventor\" id=\"ventor\">";
 		$query="SELECT * FROM `ventors`";
-		$result = $mysqli->query($query);
+		$result = $db->query($query);
 		foreach ($result as $key => $result) {
 			$return.="
 				<option value=\"".$result['ventor_id']."\">".$result['ventor_name']."</option>
@@ -161,23 +158,25 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
 	}
 	elseif ($_GET['action']=="adding_new_product"){
 		echo"<div class=content>";
-		$mysqli = new mysqli($host, $login, $password, $database);
-    // check connection
-    if ($mysqli->connect_errno) {
-      die("Connect failed: ".$mysqli->connect_error);
-    }
-    $name = addslashes($_POST['name']);
-    $description_en = addslashes($_POST['product_description_text_en']);
-    $description_ru = addslashes($_POST['product_description_text_ru']);
-    $description_ua = addslashes($_POST['product_description_text_ua']);
+		
     $adding_time=time();
-
-    $query = "INSERT INTO `products`( `product_id`, `group_id`, `name`, `price_usd`, `image`, `description`, `quantity_real`, `quantity_available`, `ventor_id`, `ru_description`, `ua_description`, `last_delivery`) VALUES ('','".$_POST['product_group']."','".$name."','".$_POST['price_usd']."','21252.png','".$description_en."','".$_POST['quantity']."','".$_POST['quantity']."','".$_POST['ventor']."','".$description_ru."','".$description_ua."','".$adding_time."')";
-    $result = $mysqli->query($query);
+    $query = "INSERT INTO `products`( `product_id`, `group_id`, `name`, `price_usd`, `image`, `description`, `quantity_real`, `quantity_available`, `ventor_id`, `ru_description`, `ua_description`, `last_delivery`) VALUES ('',:product_group,:name,:price_usd,'21252.png',:product_description_text_en, :quantity, :quantity, :ventor, :product_description_text_ru, :product_description_text_ua, '".$adding_time."')";
+    $result = $db->prepare($query);
+    $result->bindParam(':product_group',$_POST['product_group']);
+    $result->bindParam(':name',$_POST['name']);
+    $result->bindParam(':price_usd',$_POST['price_usd']);
+    $result->bindParam(':product_description_text_en',$_POST['product_description_text_en']);
+    $result->bindParam(':product_description_text_ru',$_POST['product_description_text_ru']);
+    $result->bindParam(':product_description_text_ua',$_POST['product_description_text_ua']);
+    $result->bindParam(':quantity',$_POST['quantity']);
+    $result->bindParam(':ventor',$_POST['ventor']);
+    $result->execute();
   
-    $query ="SELECT `product_id` FROM `products` WHERE `name` = '".$name."' AND `last_delivery` = '".$adding_time."'";
-    $result = $mysqli->query($query);
-    $result = $result->fetch_assoc();
+    $query ="SELECT `product_id` FROM `products` WHERE `name` = :name AND `last_delivery` = '".$adding_time."'";
+    $result = $db->prepare($query);
+    $result->bindParam(':name',$_POST['name']);
+    $result->execute();
+    $result = $result->fetch();
    
     //image upload
     $imgFile = $_FILES['product_image']['name'];
@@ -201,7 +200,7 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
       }
     }
     $query = "UPDATE `products` SET `image`= '".$coverpic."' WHERE product_id = ".$product_id;
-    $result = $mysqli->query($query);
+    $result = $db->query($query);
     echo"</div>";
     echo "
       <script type=\"text/javascript\">
@@ -211,14 +210,12 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
     ";
 	}
 	elseif ($_GET['action']=="delete_product"){
-		$mysqli = new mysqli($host, $login, $password, $database);
-    // check connection
-    if ($mysqli->connect_errno) {
-      die("Connect failed: ".$mysqli->connect_error);
-    }
-    $query ="SELECT * FROM `products` WHERE `product_id` = '".$_GET['product_id']."'";
-    $result = $mysqli->query($query);
-    $result = $result->fetch_assoc();
+		
+    $query ="SELECT * FROM `products` WHERE `product_id` = :product_id";
+    $result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
+    $result = $result->fetch();
     echo "
       <div class=\"content\">
       	<div class=\"container\">
@@ -232,23 +229,24 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
     ";
 	}
 	elseif ($_GET['action']=="deleting_product"){
-		$mysqli = new mysqli($host, $login, $password, $database);
-    // check connection
-    if ($mysqli->connect_errno) {
-      die("Connect failed: ".$mysqli->connect_error);
-    }
-    $query ="SELECT * FROM `products` WHERE `product_id` = '".$_GET['product_id']."'";
-    $result = $mysqli->query($query);
-    $result = $result->fetch_assoc();
+    $query ="SELECT * FROM `products` WHERE `product_id` = :product_id";
+    $result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
+    $result = $result->fetch();
     //deleting old image
     $old_image_path="img/product/".$result['image'];
     unlink($old_image_path);
     //deleting related comments
-    $query="DELETE FROM `products_comments` WHERE `product_id` = ".$_GET['product_id'];
-    $result = $mysqli->query($query);
+    $query="DELETE FROM `products_comments` WHERE `product_id` = :product_id";
+    $result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
     //deleting product itself
-    $query="DELETE FROM `products` WHERE `product_id` = ".$_GET['product_id'];
-    $result = $mysqli->query($query);
+    $query="DELETE FROM `products` WHERE `product_id` = :product_id";
+    $result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
     //alert+redirect
     
     echo "
@@ -259,14 +257,11 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
     ";
 	}
 	elseif ($_GET['action']=="edit_product"){
-		$mysqli = new mysqli($host, $login, $password, $database);
-    // check connection
-    if ($mysqli->connect_errno) {
-      die("Connect failed: ".$mysqli->connect_error);
-    }
-    $query ="SELECT * FROM `products` WHERE `product_id` = '".$_GET['product_id']."'";
-    $result = $mysqli->query($query);
-    $result = $result->fetch_assoc();
+    $query ="SELECT * FROM `products` WHERE `product_id` = :product_id";
+    $result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
+    $result = $result->fetch();
     $return="
 			<div class=\"content\">
 				<div class=\"container\">
@@ -278,7 +273,7 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
 							<div class=\"add-product__title\">
 								Product group:<select name=\"product_group\" id=\"product_group\">";
 		$group_query = "SELECT * FROM `products_group`";
-		$group_result = $mysqli->query($group_query);
+		$group_result = $db->query($group_query);
 		foreach ($group_result as $key => $group_result) {
 			$return.="
 				<option value=\"".$group_result['group_id']."\"";
@@ -298,7 +293,7 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
 							<div class=\"add-product__title\">
 								Ventor:<select name=\"ventor\" id=\"ventor\">";
 		$ventor_query="SELECT * FROM `ventors`";
-		$ventor_result = $mysqli->query($ventor_query);
+		$ventor_result = $db->query($ventor_query);
 		foreach ($ventor_result as $key => $ventor_result) {
 			$return.="
 				<option value=\"".$ventor_result['ventor_id']."\"";
@@ -339,14 +334,12 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
 	elseif ($_GET['action']=="editing_product"){
 		echo "<div class=\"content\">
 						<div class=\"container\">";
-		$mysqli = new mysqli($host, $login, $password, $database);
-    // check connection
-    if ($mysqli->connect_errno) {
-       die("Connect failed: ".$mysqli->connect_error);
-    }
-    $query ="SELECT * FROM `products` WHERE `product_id` = '".$_GET['product_id']."'";
-    $result = $mysqli->query($query);
-    $result = $result->fetch_assoc();
+	
+    $query ="SELECT * FROM `products` WHERE `product_id` = :product_id";
+    $result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
+    $result = $result->fetch();
     //changing image
     //deleting old image
     $old_image_path="img/product/".$result['image'];
@@ -376,8 +369,17 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
     $description_ru = addslashes($_POST['product_description_text_ru']);
     $description_ua = addslashes($_POST['product_description_text_ua']);
 
-    $query = "UPDATE `products` SET `group_id`='".$_POST['product_group']."',`name`='".$name."',`price_usd`='".$_POST['price_usd']."', `image`= '".$coverpic."',`description`='".$description_en."',`ventor_id`='".$_POST['ventor']."',`ru_description`='".$description_ru."',`ua_description`='".$description_ua."' WHERE product_id = ".$_GET['product_id'];
-    $result = $mysqli->query($query);
+    $query = "UPDATE `products` SET `group_id`=:product_group,`name`=:name,`price_usd`=:price_usd, `image`= '".$coverpic."',`description`= :product_description_text_en,`ventor_id` = :ventor,`ru_description` = :product_description_text_ru,`ua_description` = :product_description_text_ua WHERE `product_id` = :product_id";
+    $result = $db->prepare($query);
+    $result->bindParam(':product_group',$_POST['product_group']);
+    $result->bindParam(':name',$_POST['name']);
+    $result->bindParam(':price_usd',$_POST['price_usd']);
+    $result->bindParam(':product_description_text_en',$_POST['product_description_text_en']);
+    $result->bindParam(':product_description_text_ru',$_POST['product_description_text_ru']);
+    $result->bindParam(':product_description_text_ua',$_POST['product_description_text_ua']);
+    $result->bindParam(':ventor',$_POST['ventor']);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
     echo"</div></div>";
     //alert+redirect
     echo "
@@ -391,7 +393,7 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
 		header('Location: '.'index.php?action=news');
 	}
 }
-do_html_footer();
+include 'blocks/footer.php';
 ?>
 	<script src="js/vendor/modernizr-3.11.2.min.js"></script>
   <script src="js/plugins.js"></script>

@@ -1,5 +1,8 @@
 <?php
 session_start();
+require(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 ?>
 
 <!doctype html>
@@ -49,14 +52,10 @@ session_start();
 
 <body>
 <?php
-include'functions.php';
 include 'bd_connect.php';
-if(isset($_SESSION['role']) && !empty($_SESSION['role'])){
-   do_html_header_logged($_SESSION['user_id'],$_SESSION['role']);
-}
-else{
-   do_html_header_unlogged();
-}
+$db = new PDO('mysql:host='.$host.';dbname='.$database, $login, $password);
+
+include 'blocks/header.php';
 
 if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action']) && !empty($_GET['action'])){
 	if ($_GET['action']=="adress_info") {
@@ -74,21 +73,26 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
 		";
 	}
 	elseif($_GET['action']=="buy"){
-		$mysqli = new mysqli($host, $login, $password, $database);
-		// check connection
-		if ($mysqli->connect_errno) {
-			die("Connect failed: ".$mysqli->connect_error);
-		}
 		
-		$query="INSERT INTO `orders` (`order_id`, `product_id`, `quantity`, `order_time`, `sent_time`, `adress`, `status`, `user_id`, `tracking_number` ) VALUES ('', '".$_GET['product_id']."', '".$_GET['quantity']."', '".time()."','','".$_POST['adress']."','1','".$_SESSION['user_id']."','');";
-		$result = $mysqli->query($query);
+		
+		$query="INSERT INTO `orders` (`order_id`, `product_id`, `quantity`, `order_time`, `sent_time`, `adress`, `status`, `user_id`, `tracking_number` ) VALUES ('', :product_id, :quantity, '".time()."','',:adress,'1','".$_SESSION['user_id']."','');";
+		$result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->bindParam(':quantity',$_GET['quantity']);
+    $result->bindParam(':adress',$_POST['adress']);
+    $result->execute();
 		/*udpate quantity*/
-		$query="SELECT * FROM `products` WHERE `product_id` = '".$_GET['product_id']."'";
-		$result = $mysqli->query($query);
-    $result = $result->fetch_assoc();
+		$query="SELECT * FROM `products` WHERE `product_id` = :product_id";
+		$result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
+    $result = $result->fetch();
+
     $new_quantity=$result['quantity_available']-$_GET['quantity'];
-    $query = "UPDATE `products` SET `quantity_available`='".$new_quantity."' WHERE `product_id`= '".$_GET['product_id']."'";
-    $result = $mysqli->query($query);
+    $query = "UPDATE `products` SET `quantity_available`='".$new_quantity."' WHERE `product_id`= :product_id";
+    $result = $db->prepare($query);
+    $result->bindParam(':product_id',$_GET['product_id']);
+    $result->execute();
 		$location="index.php?action=view_product&product_id=".$_GET['product_id'];
 		echo "
       <script type=\"text/javascript\">
@@ -111,7 +115,7 @@ else{
       </script>
     ";
 }
-do_html_footer();
+include 'blocks/footer.php';
 ?>
 <script src="js/vendor/modernizr-3.11.2.min.js"></script>
   <script src="js/plugins.js"></script>

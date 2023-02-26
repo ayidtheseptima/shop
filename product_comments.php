@@ -1,5 +1,8 @@
 <?php
 session_start();
+require(dirname(__FILE__) . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php');
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 ?>
 <!doctype html>
 <html class="no-js" lang="">
@@ -50,20 +53,21 @@ session_start();
 
 <?php
 include 'bd_connect.php';
+$db = new PDO('mysql:host='.$host.';dbname='.$database, $login, $password);
 if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action']) && !empty($_GET['action'])){
 	if ($_GET['action']=="add_comment") {
-		$mysqli = new mysqli($host, $login, $password, $database);
-		// check connection
-		if ($mysqli->connect_errno) {
-		    die("Connect failed: ".$mysqli->connect_error);
-		}
-    
-
-
-		$query="INSERT INTO `products_comments` (`product_id`, `user_id`, `comment_time`, `comment_text`) VALUES ('".$_GET['return_id']."', '".$_SESSION['user_id']."', '".time()."', '".$_POST['comment-editor']."');";
-		$result = $mysqli->query($query);
+		$query="INSERT INTO `products_comments` (`product_id`, `user_id`, `comment_time`, `comment_text`) VALUES (:return_id, '".$_SESSION['user_id']."', '".time()."', :comment_editor);";
+		$result = $db->prepare($query);
+    $result->bindParam(':return_id',$_GET['return_id']);
+    $result->bindParam(':comment_editor',$_POST['comment-editor']);
+    $result->execute();
 		$location="index.php?action=view_product&product_id=".$_GET['return_id'];
-		header('Location: '.$location);
+    echo "
+      <script type=\"text/javascript\">
+        alert('Confirmed sucessfully');
+        window.location='".$location."';
+      </script>
+    ";
 	}
   elseif ($_GET['action']=="delete_comment") {
     $mysqli = new mysqli($host, $login, $password, $database);
@@ -71,15 +75,18 @@ if(isset($_SESSION['role']) && !empty($_SESSION['role']) && isset($_GET['action'
     if ($mysqli->connect_errno) {
         die("Connect failed: ".$mysqli->connect_error);
     }
-    $query="SELECT * FROM `products_comments` WHERE `comment_time` = '".$_GET['comment_time']."' AND `user_id` = '".$_GET['user_id']."'";
-    $result = $mysqli->query($query);
-    $result = $result->fetch_assoc();
+    $query="SELECT * FROM `products_comments` WHERE `comment_time` = :comment_time AND `user_id` = :user_id";
+    $result = $db->prepare($query);
+    $result->bindParam(':comment_time',$_GET['comment_time']);
+    $result->bindParam(':user_id',$_GET['user_id']);
+    $result->execute();
+    $result = $result->fetch();
     $user_query = "SELECT * FROM `users` WHERE `user_id` = '".$result['user_id']."'";
-    $user_result = $mysqli->query($user_query);
-    $user_result = $user_result->fetch_assoc();
+    $user_result = $db->query($user_query);
+    $user_result = $user_result->fetch();
     if ($_SESSION['user_id']==$user_result['user_id'] OR $user_result['role']<$_SESSION['role']) {
       $query = "DELETE FROM `products_comments` WHERE `comment_time` = '".$result['comment_time']."' AND `user_id` = '".$result['user_id']."'";
-      $result2 = $mysqli->query($query);
+      $result2 = $db->query($query);
       //alert+redirect
       echo "
         <script type=\"text/javascript\">
